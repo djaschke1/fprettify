@@ -22,4 +22,4 @@
 Initialization of fprettify.
 """
 from fprettify.version import __version__
-from fprettify.fprettifycore import run, raise_error_for_diff
+from fprettify.fprettifycore import run, raise_error_for_diff, FprettifyDiffException
