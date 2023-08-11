@@ -1379,8 +1379,52 @@ def diff(a, b, a_name, b_name):
         difflib.unified_diff(a_lines, b_lines, fromfile=a_name, tofile=b_name, n=5)
     )
 
+
+class FprettifyDiff(Exception):
+    """Custom error for raising error if file is not consistent with fprettify."""
+    pass
+
+
+def raise_error_for_diff(filename, **kwargs):
+    """
+    Retrieves diff for reformatting under the given settings and raises
+    an error if a diff is present, e.g., for unittesting.
+
+    **Arguments**
+
+    filename : str
+        File to open.
+
+    kwargs : keyword arguments are passed to
+        `reformat_inplace` / `reformat_ffile`
+    """
+    diff_contents = reformat_inplace(filename, diffonly=True, **kwargs)
+    if len(diff_contents) != 0:
+        sys.stdout.write(diff_contents)
+        raise FprettifyDiff("File `%s` not consistent with fprettify."%(filename))
+
+    return
+
 def reformat_inplace(filename, stdout=False, diffonly=False, **kwargs):  # pragma: no cover
-    """reformat a file in place."""
+    """
+    Reformat a file in place.
+
+    **Arguments**
+
+    filename : str
+        File to open or reading from command line if passed `-`.
+
+    stdout : bool, optional
+        Control output to stdout (`True`) or file-in-place (`False`).
+        Default to `False`
+
+    diffonly : bool, optional
+        If `True`, diff will be generated and returned. Depending on
+        the value of `stdout`, it will be printed as well.
+        Default to `False`
+
+    kwargs : keyword arguments passed to `reformat_ffile`
+    """
     if filename == '-':
         infile = io.StringIO()
         infile.write(sys.stdin.read())
@@ -1395,7 +1439,11 @@ def reformat_inplace(filename, stdout=False, diffonly=False, **kwargs):  # pragm
         infile.seek(0)
         newfile.seek(0)
         diff_contents=diff(infile.read(),newfile.read(),filename,filename)
-        sys.stdout.write(diff_contents)
+
+        if stdout:
+            sys.stdout.write(diff_contents)
+
+        return diff_contents
     else:
 
         if stdout:
@@ -2133,6 +2181,10 @@ def run(argv=sys.argv):  # pragma: no cover
                 level = logging.WARNING
 
             set_fprettify_logger(level)
+
+            if diffonly:
+                # Running from command line, diffonly must go to stdout
+                stdout = True
 
             try:
                 reformat_inplace(filename,
