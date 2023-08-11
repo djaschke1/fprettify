@@ -1043,19 +1043,20 @@ def format_single_fline(f_line, whitespace, whitespace_dict, linebreak_pos,
             'print': 6,           # 6: print / read statements
             'type': 7,            # 7: select type components
             'intrinsics': 8,      # 8: intrinsics
-            'decl': 9             # 9: declarations
+            'decl': 9,            # 9: declarations
+            'ends': 10,           # 10: end (intrinsics)
             }
 
     if whitespace == 0:
-        spacey = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        spacey = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     elif whitespace == 1:
-        spacey = [1, 1, 1, 1, 0, 0, 1, 0, 1, 1]
+        spacey = [1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1]
     elif whitespace == 2:
-        spacey = [1, 1, 1, 1, 1, 0, 1, 0, 1, 1]
+        spacey = [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1]
     elif whitespace == 3:
-        spacey = [1, 1, 1, 1, 1, 1, 1, 0, 1, 1]
+        spacey = [1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1]
     elif whitespace == 4:
-        spacey = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        spacey = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     else:
         raise NotImplementedError("unknown value for whitespace")
 
@@ -1258,7 +1259,7 @@ def add_whitespace_charwise(line, spacey, scope_parser, format_decl, filename, l
             if endre and endre.search(line_ftd):
                 is_end = True
     if is_end:
-        line_ftd = END_RE.sub(r'\1' + ' '*spacey[8] + r'\2', line_ftd)
+        line_ftd = END_RE.sub(r'\1' + ' '*spacey[10] + r'\2', line_ftd)
 
     if level != 0:
         log_message('unpaired bracket delimiters', "info", filename, line_nr)
@@ -1501,7 +1502,9 @@ def reformat_ffile_combined(infile, outfile, impose_indent=True, indent_size=3, 
     nfl = 0  # fortran line counter
     use_same_line = False
     stream = InputStream(infile, not indent_fypp, orig_filename=orig_filename)
+    counter_blank = 0
     skip_blank = False
+    threshold_blank = 2
     in_format_off_block = False
 
     while 1:
@@ -1607,8 +1610,13 @@ def reformat_ffile_combined(infile, outfile, impose_indent=True, indent_size=3, 
                 indent_special = 1
 
         # rm subsequent blank lines
-        skip_blank = EMPTY_RE.search(
-            f_line) and not any(comments) and not is_omp_conditional and not label
+        if EMPTY_RE.search(f_line) and not any(comments) \
+           and not is_omp_conditional and not label :
+            counter_blank += 1
+        else:
+            counter_blank = 0
+
+        skip_blank = counter_blank > threshold_blank
 
 
 def format_comments(lines, comments, strip_comments):
@@ -1852,6 +1860,10 @@ def write_formatted_line(outfile, indent, lines, orig_lines, indent_special, lle
             else:
                 ind_use = 0
 
+        # Indent doxygen-style post-variable comments with indent
+        if(line.strip().startswith('!<')):
+            ind_use += 4
+
         if CPP_RE.search(line.lstrip()):
             ind_use = 0
 
@@ -1986,6 +1998,8 @@ def run(argv=sys.argv):  # pragma: no cover
                             help="boolean, en-/disable whitespace for select type components")
         parser.add_argument("--whitespace-intrinsics", type=str2bool, nargs="?", default="None", const=True,
                             help="boolean, en-/disable whitespace for intrinsics like if/write/close")
+        parser.add_argument("--whitespace-ends", type=str2bool, nargs="?", default="None", const=True,
+                            help="boolean, en-/disable whitespace for intrinsics end statements")
         parser.add_argument("--strict-indent", action='store_true', default=False, help="strictly impose indentation even for nested loops")
         parser.add_argument("--enable-decl", action="store_true", default=False, help="enable whitespace formatting of declarations ('::' operator).")
         parser.add_argument("--disable-indent", action='store_true', default=False, help="don't impose indentation")
@@ -2044,6 +2058,7 @@ def run(argv=sys.argv):  # pragma: no cover
         ws_dict['print'] = args.whitespace_print
         ws_dict['type'] = args.whitespace_type
         ws_dict['intrinsics'] = args.whitespace_intrinsics
+        ws_dict['ends'] = args.whitespace_ends
         return ws_dict
 
     # support legacy input:
