@@ -71,13 +71,7 @@ import logging
 import os
 import io
 
-sys.stdin = io.TextIOWrapper(
-    sys.stdin.detach(), encoding='UTF-8', line_buffering=True)
-sys.stdout = io.TextIOWrapper(
-    sys.stdout.detach(), encoding='UTF-8', line_buffering=True)
-
-
-from .fparse_utils import (VAR_DECL_RE, OMP_COND_RE, OMP_DIR_RE,
+from fprettify.fparse_utils import (VAR_DECL_RE, OMP_COND_RE, OMP_DIR_RE,
                            InputStream, CharFilter,
                            FprettifyException, FprettifyParseException, FprettifyInternalException,
                            CPP_RE, NOTFORTRAN_LINE_RE, NOTFORTRAN_FYPP_LINE_RE, FYPP_LINE_RE, RE_FLAGS,
@@ -1380,7 +1374,7 @@ def diff(a, b, a_name, b_name):
     )
 
 
-class FprettifyDiff(Exception):
+class FprettifyDiffException(Exception):
     """Custom error for raising error if file is not consistent with fprettify."""
     pass
 
@@ -1400,8 +1394,7 @@ def raise_error_for_diff(filename, **kwargs):
     """
     diff_contents = reformat_inplace(filename, diffonly=True, **kwargs)
     if len(diff_contents) != 0:
-        sys.stdout.write(diff_contents)
-        raise FprettifyDiff("File `%s` not consistent with fprettify."%(filename))
+        raise FprettifyDiffException("File `%s` not consistent with fprettify."%(filename))
 
     return
 
@@ -1426,6 +1419,8 @@ def reformat_inplace(filename, stdout=False, diffonly=False, **kwargs):  # pragm
     kwargs : keyword arguments passed to `reformat_ffile`
     """
     if filename == '-':
+        sys.stdin = io.TextIOWrapper(
+            sys.stdin.detach(), encoding='UTF-8', line_buffering=True)
         infile = io.StringIO()
         infile.write(sys.stdin.read())
     else:
@@ -1434,6 +1429,11 @@ def reformat_inplace(filename, stdout=False, diffonly=False, **kwargs):  # pragm
     newfile = io.StringIO()
     reformat_ffile(infile, newfile,
                    orig_filename=filename, **kwargs)
+
+    # prepare stdout
+    if stdout:
+        sys.stdout = io.TextIOWrapper(
+            sys.stdout.detach(), encoding='UTF-8', line_buffering=True)
 
     if diffonly:
         infile.seek(0)
