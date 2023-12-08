@@ -1496,7 +1496,6 @@ def reformat_ffile(infile, outfile, impose_indent=True, indent_size=3, strict_in
 
     # 2) indentation
     if impose_indent:
-
         _impose_whitespace = False
         _impose_replacements = False
 
@@ -1674,7 +1673,10 @@ def format_comments(lines, comments, strip_comments):
         if has_comment:
             if strip_comments:
                 sep = not comment.strip() == line.strip()
+            elif(True):
+                sep = 4
             else:
+                # Unreachable right now - was interfering with something, but what?
                 line_minus_comment = line.replace(comment,"")
                 sep = len(line_minus_comment.rstrip('\n')) - len(line_minus_comment.rstrip())
         else:
@@ -1762,9 +1764,11 @@ def preprocess_line(f_line, lines, comments, filename, line_nr, indent_fypp):
 
     if EMPTY_RE.search(f_line):  # empty lines including comment lines
         if any(comments):
-            if lines[0].startswith(' ') and not OMP_DIR_RE.search(lines[0]):
-                # indent comment lines only if they were not indented before.
-                prev_indent = True
+            prev_indent = True
+            #if lines[0].startswith(' ') and not OMP_DIR_RE.search(lines[0]):
+            #if lines[0].startswith(' ') and not OMP_DIR_RE.search(lines[0]):
+            #    # indent comment lines only if they were not indented before.
+            #    prev_indent = True
         else:
             is_blank = True
         lines = [l.strip(' ') if not is_special[n] else l for n, l in enumerate(lines)]
